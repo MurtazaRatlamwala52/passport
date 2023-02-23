@@ -3,6 +3,9 @@ const ejs = require('ejs')
 const passport = require('passport')
 const bcrypt = require('bcrypt')
 const {users} = require('./connection')
+const expressSession = require('express-session')
+const {initializingPassport, isAuthenticated} = require('./passport-config')
+// const { authenticate } = require('passport')
 const app = express()
 
 // const initializePassport = require('./passport-config')
@@ -11,21 +14,56 @@ const app = express()
 //     return user.toJSON()
 // })
 
+initializingPassport(passport)
 
-app.use(express.json())
-app.set('view engine', 'ejs')
-app.use(express.urlencoded({extended: false}))
+app.use(express.json());
+app.use(express.urlencoded({extended: false}));
+app.use(expressSession({secret: 'secret', resave:false, saveUninitialized:false}));
+app.use(passport.initialize());
+app.use(passport.session());
+app.set('view engine', 'ejs');
+
+// function isAuthenticated(req,res,next){
+//     if(req.user) 
+// }
+
+// console.log(isAuthenticated)
+
+
+app.get('/', isAuthenticated,(req,res)=>{
+    res.render('index')
+})
+
+// app.post('/logout', function(req, res, next){
+//     req.logout(function(err) {
+//       if (err) { return next(err); }
+//       res.redirect('/');
+//     });
+//   },(req,res)=>{
+//     res.redirect('/login')
+//   });
+
+app.get('/logout', (req,res) => {
+    console.log(req.user.dataValues)
+    req.logout((err)=>{
+        if(err){ 
+            console.log(err)
+            return;
+        }
+        return res.redirect('/login');    
+    })})
+    
 
 
 
-// app.get('/',(req,res)=>{
-//     res.render('index')
-// })
+app.post('/login',passport.authenticate('local',{failureRedirect: '/register',successRedirect: '/'}),(req,res)=>{
+    console.log(req.body)
+    
+})
 
-
-// app.get('/login', (req,res)=>{
-//     res.render('login')
-// })
+app.get('/login', (req,res)=>{
+    res.render('login')
+})
 
 app.get('/register', (req,res)=>{
     res.render('register')  
@@ -37,7 +75,7 @@ app.post('/register', async (req,res)=>{
          console.log(hashedpassword)
           const newUser = await users.create({
             name: req.body.name,
-            email: req.body.email,
+            email: req.body.username,
             password: hashedpassword
          })
             res.redirect('/login')
